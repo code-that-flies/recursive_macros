@@ -1,9 +1,23 @@
 import re
 
-dict_macros = {'print': print}
+dict_macros = {'print': print, 'save': 'a{} b{}', 'query_testing': ['Query<char> query_{0};',
+                                                           'query_{0}.OR_queries.'
+                                                           'push_back(Query<char>::FromString("{0}"));',
+                                                           'pattern.queries.push_back(query_{});'
+                                                           # A real-life example of how something could be generated
+                                                           ]
+               }
 dict_simple_macros = {}
 
 output = print
+
+
+# Currently only targets C++ (WIP, will target many more hopefully!)
+def default_outputting(function, args):
+    to_output = function + '(' + ', '.join(args) + ');'
+
+    output(to_output)
+
 
 def interpret_get_macro(formatted_text):    # TODO: make it fully recursive
     results = re.search(r'(![A-Za-z])\w+', formatted_text)
@@ -32,13 +46,22 @@ def interpret_get_macro(formatted_text):    # TODO: make it fully recursive
 
             args.append(secondary_result)
 
-    # Currently only targets C++ (WIP, will target many more hopefully!)
-    output(function + '(' + ', '.join(args) + ');')
+    if function in dict_macros.keys():
+        if isinstance(dict_macros[function], str):
+            output(dict_macros[function].format(*args))
+        elif isinstance(dict_macros[function], list):
+            output('\n'.join([sub_function.format(*args) for sub_function in dict_macros[function]]))
+        else:
+            default_outputting(function, args)
 
-    dict_macros[function](*args)
-    return dict_macros[function], {'function': function, 'args': args}
+            dict_macros[function](*args)
 
-interpret_get_macro("!print {test}")
+        return dict_macros[function], {'function': function, 'args': args}
+
+    default_outputting(function, args)
+
+
+interpret_get_macro("!query_testing " + "~test " * 6)
 
 
 def interpret_set_macro(macro):
