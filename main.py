@@ -1,7 +1,9 @@
 import re
 
-dict_functions = {}
+dict_macros = {}
+dict_simple_macros = {}
 
+output = print
 
 def interpret_get_macro(formatted_text):
     results = re.search(r'(![A-Za-z])\w+', formatted_text)
@@ -11,17 +13,24 @@ def interpret_get_macro(formatted_text):
     else:
         return  # TODO: add ability to guess the function name based on the parameters
 
+    if function in dict_simple_macros.keys():
+        output(dict_macros[function])
+
+        return dict_simple_macros[function], []
+
     raw_args = re.findall(r'({.+})|(~[\w-]+)', formatted_text)
 
     args = []
     for primary_result, secondary_result in raw_args:
         if primary_result == '':
             args.append(primary_result)
-        else:
-            args.append(secondary_result)
+         else:
+             args.append(secondary_result)
 
-    if function in dict_functions.keys():
-        dict_functions[function](*args)
+    dict_macros[function](*args)
+    return dict_macros[function], args
+
+
 
 
 def interpret_set_macro(macro):
