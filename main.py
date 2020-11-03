@@ -61,8 +61,7 @@ def interpret_get_macro(formatted_text):    # TODO: make it fully recursive
     default_outputting(function, args)
 
 
-interpret_get_macro("!query_testing " + "~test " * 6)
-
+# interpret_get_macro("!query_testing " + "~test " * 6)
 
 def interpret_set_macro(macro):
     macro
