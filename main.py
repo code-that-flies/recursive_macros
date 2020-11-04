@@ -106,14 +106,17 @@ def interpret_get_macro(formatted_text):    # TODO: make it fully recursive
 
 # interpret_get_macro("!print ~test ")
 
-def interpret_set_macro(macro):
+def interpret_set_macro(macro, is_multiline_comment=False):
     name = re.search(r'^\w+(?=:)', macro)
     
     value = re.search(r'(?::).+$', macro).group(0)[1:].strip()
     
+    if is_multiline_comment:
+        value = value.split('\n')
+    
     dict_macros[name] = value
     
-def interpret(text):
+def interpret(text, is_multiline_comment=False):
     text_copy = text.strip()
     
     command = text_copy[:3].upper()
@@ -126,7 +129,7 @@ def interpret(text):
     elif command == 'SET':
         macro = text[text.find('SET') + 3:]
         
-        interpret_set_macro(macro)
+        interpret_set_macro(macro, is_multiline_comment)
         
         return None
     else:
@@ -164,11 +167,13 @@ class comment():
         parent.value = parent.value.replace(value, _hash)
         
         temp_value = value
+        is_multiline_comment = False
         if _type == 'line-comment' and language == 'c++':
             temp_value = value[2:]
         elif _type == 'block-comment' and language == 'c++':
             temp_value = value[2:-2]
-        interpretation = interpret(temp_value)
+            is_multiline_common = True
+        interpretation = interpret(temp_value, is_multiline_comment)
         
         return comment(value, _hash, _type, interpretation, parent)
         
