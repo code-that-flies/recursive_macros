@@ -14,6 +14,8 @@ dict_simple_macros = {}
 
 commands = [['GET', 'SET'], ['LISTR']]
 
+delimiters = [ ';;' ]
+
 output = print
 
 def add_macro(macro_name, macro_function):
@@ -124,8 +126,6 @@ def interpret_set_macro(macro, is_multiline_comment=False):
     
     value = re.search(r'(?::).+$', macro).group(0)[1:].strip()
     
-    value = re.split(r'[;\n]', value)
-    
     dict_macros[name] = value
     
 def interpret_listr_set_macro(macro, is_multiline_comment=False):
@@ -136,7 +136,7 @@ def interpret_listr_set_macro(macro, is_multiline_comment=False):
     if is_multiline_comment:
         value = value.split('\n')
     else:
-        value = value.split(';;')
+        value = value.split(delimiters[0])
     
     dict_macros[name] = value
     
@@ -190,7 +190,7 @@ class comment():
         self.parent.value.replace(self.hash, self.value)
     
     @staticmethod
-    def from_str(regex, parent, _type, language='c++'):
+    def from_str(regex, parent, _type, language='C++'):
         value = re.search(regex, parent.value).group(0)
         
         if value is None:
@@ -202,9 +202,9 @@ class comment():
         
         temp_value = value
         is_multiline_comment = False
-        if _type == 'line-comment' and language == 'c++':
+        if _type == 'line-comment' and language == 'C++':
             temp_value = value[2:]
-        elif _type == 'block-comment' and language == 'c++':
+        elif _type == 'block-comment' and language == 'C++':
             temp_value = value[2:-2]
             is_multiline_common = True
         interpretation = interpret(temp_value, is_multiline_comment)
@@ -230,7 +230,7 @@ class code():
         self.value = new_value
         
     @staticmethod
-    def from_str(regex, parent, _type, name='', parent_name='', language='c++'):
+    def from_str(regex, parent, _type, name='', parent_name='', language='C++'):
         value = re.search(regex, parent.value).group(0)
         
         if value is None:
@@ -240,10 +240,10 @@ class code():
         
         parent.value = parent.value.replace(value, _hash)
         
-        if (_type == 'class-declaration' or _type == 'struct-declaration') and language == 'c++':
+        if (_type == 'class-declaration' or _type == 'struct-declaration') and language == 'C++':
             name = value.split()[1]
             
-        if _type == 'function-definition' and language == 'c++':
+        if _type == 'function-definition' and language == 'C++':
             results = re.search(r'\w*(::)*\w+::\w+(?=(\([\w<>&*:,\s]*\)))', value).split('::')
             
             name = results[-1]
@@ -267,6 +267,10 @@ if __name__ == '__main__':
             if isinstance(data['macros'], dict):
                 dict_macros = {**dict_macros, **data['simple_macros']}
         if 'commands' in data.keys():
-            if isinstance(data['macros'], list):
+            if isinstance(data['commands'], list):
                 # overwrites command names with custom command names from the settings file
                 commands = data['commands']
+        if 'delimiters' in data.keys():
+            if isinstance(data['delimiters'], list):
+                # overwrites delimiters with custom ones from the settings file
+                delimiters = data['delimiters']
