@@ -1,5 +1,6 @@
 import re
 import hashlib
+import json
 
 
 dict_macros = {'print': print, 'save': 'a{} b{}', 'query_testing': ['Query<char> query_{0};',
@@ -11,10 +12,15 @@ dict_macros = {'print': print, 'save': 'a{} b{}', 'query_testing': ['Query<char>
                }
 dict_simple_macros = {}
 
+commands = [['GET', 'SET'], ['LISTR']]
+
 output = print
 
 def add_macro(macro_name, macro_function):
     dict_macros[macro_name] = macro_function
+
+def add_simple_macro(macro_name, macro_function):
+    dict_simple_macros[macro_name] = macro_function
 
 def remove_all_generated_code(raw):
     isFailed = False
@@ -61,7 +67,7 @@ def default_outputting(function, args):
 
 
 def interpret_get_macro(formatted_text):    # TODO: make it fully recursive
-    results = re.search(r'(![A-Za-z])\w+', formatted_text)
+    results = re.search(r'(![A-Za-z_-])\w+', formatted_text)
     function = ""
     if results is not None:
         function = results.group(0)[1:]
@@ -69,9 +75,16 @@ def interpret_get_macro(formatted_text):    # TODO: make it fully recursive
         return  # TODO: add ability to guess the function name based on the parameters
 
     if function in dict_simple_macros.keys():
-        output(dict_macros[function])
+        
+        if isinstance(dict_simple_macros[function], list):
+            results = []
+            
+            for simple_macro in dict_simple_macros[function]:
+                results.append(interpret_get_macro(formatted_text.replace(function, simple_macro)))
+                
+            return '\n'.join(results)
 
-        return dict_simple_macros[function], {'function': function, 'args': []}
+        return interpret_submacro(dict_simple_macros[function])
 
     raw_args = re.findall(r'({.+})|(~[\w-]+)', formatted_text)
 
@@ -111,25 +124,46 @@ def interpret_set_macro(macro, is_multiline_comment=False):
     
     value = re.search(r'(?::).+$', macro).group(0)[1:].strip()
     
+    value = re.split(r'[;\n]', value)
+    
+    dict_macros[name] = value
+    
+def interpret_listr_set_macro(macro, is_multiline_comment=False):
+    name = re.search(r'^\w+(?=:)', macro)
+    
+    value = re.search(r'(?::).+$', macro).group(0)[1:].strip()
+    
     if is_multiline_comment:
         value = value.split('\n')
+    else:
+        value = value.split(';;')
     
     dict_macros[name] = value
     
 def interpret(text, is_multiline_comment=False):
     text_copy = text.strip()
-    
+
+    lengths = [max(command_tier, key=len) for command_tier in commands]
+
+
     command = text_copy[:3].upper()
     
-    if command == 'GET':
-        formatted_text = text[text.find('GET') + 3:]
+    if command == commands[0][0]:
+        formatted_text = text[text.find(commands[0][0]) + lengths[0]:]
         
         return interpret_get_macro(formatted_text)
     
-    elif command == 'SET':
-        macro = text[text.find('SET') + 3:]
+    elif command == commands[0][1]:
+        next_command = text[text.find(commands[0][1]) + lengths[0]:].strip()[:lengths[0]].upper()
         
-        interpret_set_macro(macro, is_multiline_comment)
+        if next_command == commands[1][0]:
+            formatted_text = text[text.find(commands[1][0]) + lengths[1]:]
+            
+            interpret_listr_set_macro(formatted_text, is_multiline_comment)
+        else: # No secondary command found
+            macro = text[text.find(commands[0][1]) + lengths[0]:]
+        
+            interpret_set_macro(macro, is_multiline_comment)
         
         return None
     else:
@@ -223,4 +257,16 @@ class code():
     
 
 if __name__ == '__main__':
-    pass
+    with open('recursive_macros.json') as json_file:
+        data = json.load(json_file)
+
+        if 'simple_macros' in data.keys():
+            if isinstance(data['simple_macros'], dict):
+                dict_simple_macros = {**dict_simple_macros, **data['simple_macros']}
+        if 'macros' in data.keys():
+            if isinstance(data['macros'], dict):
+                dict_macros = {**dict_macros, **data['simple_macros']}
+        if 'commands' in data.keys():
+            if isinstance(data['macros'], list):
+                # overwrites command names with custom command names from the settings file
+                commands = data['commands']
